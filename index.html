@@ -8,26 +8,51 @@
         body { margin: 0; background: #0a111c; overflow: hidden; }
         canvas { display: block; }
         
-        /* 完美修复居中偏位问题，不改变任何字体和色彩 */
-        #missText {
+        /* 核心：包裹双层字体的容器，确保100%死死居中，不偏位 */
+        .text-container {
             position: absolute;
             top: 48%;
-            left: 0;         /* 修改点1：从最左侧开始计算 */
-            width: 100%;     /* 修改点2：撑满屏幕宽度，确保100%绝对居中 */
+            left: 0;
+            width: 100%;
             box-sizing: border-box;
-            padding: 0 10px; /* 防止极小屏幕贴边 */
-            color: #89CFF0; 
-            -webkit-text-stroke: 2.5px #ffffff; 
+            padding: 0 10px;
+            pointer-events: none;
+            animation: float 3s ease-in-out infinite; 
+        }
+
+        /* 纯白底色字：充当3D泡泡字的外边框，彻底杜绝黑屏 */
+        #shadowText {
+            color: #ffffff;
             font-family: 'Arial Rounded MT Bold', 'Baloo', 'Comic Sans MS', sans-serif;
             font-size: 38px;
             font-weight: 900;
             letter-spacing: 2px;
-            pointer-events: none;
-            text-align: center; /* 修改点3：让文本内容在100%容器内完美内居中 */
+            text-align: center;
             white-space: nowrap;
-            text-shadow: 0px 4px 8px rgba(0, 0, 0, 0.4);
-            /* 将水平居中交给 text-align，这里动画只负责上下浮动，防止位图冲突 */
-            animation: float 3s ease-in-out infinite; 
+            /* 用密集的微小阴影把它撑得更圆润，形成白边 */
+            text-shadow: 
+                -2px -2px 0 #ffffff,  2px -2px 0 #ffffff,
+                -2px  2px 0 #ffffff,  2px  2px 0 #ffffff,
+                -2px  0px 0 #ffffff,  2px  0px 0 #ffffff,
+                 0px -2px 0 #ffffff,  0px  2px 0 #ffffff,
+                 0px  5px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 婴儿蓝字：精准盖在正上方，形成内填充 */
+        #fillText {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 0 10px;
+            box-sizing: border-box;
+            color: #89CFF0; /* 纯正 Baby Blue */
+            font-family: 'Arial Rounded MT Bold', 'Baloo', 'Comic Sans MS', sans-serif;
+            font-size: 38px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-align: center;
+            white-space: nowrap;
         }
 
         @keyframes float {
@@ -37,7 +62,10 @@
     </style>
 </head>
 <body>
-    <div id="missText"></div>
+    <div class="text-container">
+        <div id="shadowText"></div>
+        <div id="fillText"></div>
+    </div>
     <canvas id="canvas"></canvas>
 
     <script>
@@ -113,4 +141,67 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.globalAlpha = 0.4; 
-                ctx.
+                ctx.fillText(p.char, 0, 0);
+                ctx.restore();
+
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.angle += p.vAngle;
+                if (p.y > height) {
+                    p.y = -20;
+                    p.x = Math.random() * width;
+                }
+            });
+
+            // 2. 有清晰停顿感的心跳（保持原样）
+            const bpm = 65; 
+            const beatDuration = 60000 / bpm; 
+            const elapsed = (now - startTime) % beatDuration; 
+            
+            let pulseScale = 0;
+            if (elapsed < 120) {
+                pulseScale = Math.sin((elapsed / 120) * (Math.PI / 2)) * 25;
+            } else if (elapsed < 240) {
+                pulseScale = 25 - Math.sin(((elapsed - 120) / 120) * (Math.PI / 2)) * 15;
+            } else if (elapsed < 360) {
+                pulseScale = 10 + Math.sin(((elapsed - 240) / 120) * Math.PI) * 5;
+            } else {
+                pulseScale = 10;
+            }
+
+            const pulse = 145 + pulseScale;
+            const rotationY = time * 0.9; 
+            drawHeart(ctx, width / 2, height / 2 - 60, pulse, rotationY);
+
+            // 3. 双层打字机同步注入逻辑
+            if (!startTyping && (now - startTime) > 1000) {
+                startTyping = true;
+                lastTypeTime = now;
+            }
+
+            if (startTyping && textIndex < fullText.length) {
+                if (now - lastTypeTime > 160) {
+                    let currentStr = "";
+                    if (fullText.substr(textIndex, 2) === "🤍") {
+                        currentStr = fullText.substr(0, textIndex + 2);
+                        textIndex += 2;
+                    } else {
+                        currentStr = fullText.substr(0, textIndex + 1);
+                        textIndex += 1;
+                    }
+                    // 让两层文字内容绝对同步敲出来
+                    document.getElementById('shadowText').innerText = currentStr;
+                    document.getElementById('fillText').innerText = currentStr;
+                    lastTypeTime = now;
+                }
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        window.addEventListener('resize', init);
+        init();
+        render();
+    </script>
+</body>
+</html>
