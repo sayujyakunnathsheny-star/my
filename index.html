@@ -8,28 +8,31 @@
         body { margin: 0; background: #0a111c; overflow: hidden; }
         canvas { display: block; }
         
-        /* 白色外边 + Baby Blue 填充的Q弹泡泡字 */
+        /* 完美修复居中偏位问题，不改变任何字体和色彩 */
         #missText {
             position: absolute;
             top: 48%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #89CFF0; /* 内部填充 Baby Blue */
-            -webkit-text-stroke: 2.5px #ffffff; /* 干净的纯白外边 */
+            left: 0;         /* 修改点1：从最左侧开始计算 */
+            width: 100%;     /* 修改点2：撑满屏幕宽度，确保100%绝对居中 */
+            box-sizing: border-box;
+            padding: 0 10px; /* 防止极小屏幕贴边 */
+            color: #89CFF0; 
+            -webkit-text-stroke: 2.5px #ffffff; 
             font-family: 'Arial Rounded MT Bold', 'Baloo', 'Comic Sans MS', sans-serif;
             font-size: 38px;
             font-weight: 900;
             letter-spacing: 2px;
             pointer-events: none;
-            text-align: center;
+            text-align: center; /* 修改点3：让文本内容在100%容器内完美内居中 */
             white-space: nowrap;
             text-shadow: 0px 4px 8px rgba(0, 0, 0, 0.4);
+            /* 将水平居中交给 text-align，这里动画只负责上下浮动，防止位图冲突 */
             animation: float 3s ease-in-out infinite; 
         }
 
         @keyframes float {
-            0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
-            50% { transform: translate(-50%, -50%) translateY(-6px); }
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
         }
     </style>
 </head>
@@ -110,68 +113,4 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.globalAlpha = 0.4; 
-                ctx.fillText(p.char, 0, 0);
-                ctx.restore();
-
-                p.x += p.speedX;
-                p.y += p.speedY;
-                p.angle += p.vAngle;
-                if (p.y > height) {
-                    p.y = -20;
-                    p.x = Math.random() * width;
-                }
-            });
-
-            // 2. 【重磅重构】绝对清晰、有停顿感的“扑通”心跳算法
-            const bpm = 65; // 设置模拟心率，每分钟跳65次
-            const beatDuration = 60000 / bpm; // 每次心跳周期的总毫秒数（约923毫秒）
-            const elapsed = (now - startTime) % beatDuration; 
-            
-            let pulseScale = 0;
-            // 将单次心跳严格划分为：激进放大 -> 快速回弹 -> 彻底静止
-            if (elapsed < 120) {
-                // 前120毫秒：主心跳，猛烈放大
-                pulseScale = Math.sin((elapsed / 120) * (Math.PI / 2)) * 25;
-            } else if (elapsed < 240) {
-                // 120-240毫秒：迅速回弹收缩
-                pulseScale = 25 - Math.sin(((elapsed - 120) / 120) * (Math.PI / 2)) * 15;
-            } else if (elapsed < 360) {
-                // 240-360毫秒：轻微的第二下舒张（扑通的“通”声）
-                pulseScale = 10 + Math.sin(((elapsed - 240) / 120) * Math.PI) * 5;
-            } else {
-                // 360毫秒直到周期结束（约剩下560毫秒）：爱心保持静止不动！从而形成清晰的节拍
-                pulseScale = 10;
-            }
-
-            const pulse = 145 + pulseScale;
-            const rotationY = time * 0.9; // 稍微放慢 3D 旋转，让静止期更明显
-            drawHeart(ctx, width / 2, height / 2 - 60, pulse, rotationY);
-
-            // 3. 打字机逻辑
-            if (!startTyping && (now - startTime) > 1000) {
-                startTyping = true;
-                lastTypeTime = now;
-            }
-
-            if (startTyping && textIndex < fullText.length) {
-                if (now - lastTypeTime > 160) {
-                    if (fullText.substr(textIndex, 2) === "🤍") {
-                        document.getElementById('missText').innerText = fullText.substr(0, textIndex + 2);
-                        textIndex += 2;
-                    } else {
-                        document.getElementById('missText').innerText = fullText.substr(0, textIndex + 1);
-                        textIndex += 1;
-                    }
-                    lastTypeTime = now;
-                }
-            }
-
-            requestAnimationFrame(render);
-        }
-
-        window.addEventListener('resize', init);
-        init();
-        render();
-    </script>
-</body>
-</html>
+                ctx.
