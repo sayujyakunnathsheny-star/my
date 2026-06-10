@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>For You</title>
+    <style>
+        body { margin: 0; background: #0a111c; overflow: hidden; }
+        canvas { display: block; }
+        
+        /* 白色外边 + Baby Blue 填充的Q弹泡泡字 */
+        #missText {
+            position: absolute;
+            top: 48%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #89CFF0; /* 内部填充 Baby Blue */
+            -webkit-text-stroke: 2.5px #ffffff; /* 干净的纯白外边 */
+            font-family: 'Arial Rounded MT Bold', 'Baloo', 'Comic Sans MS', sans-serif;
+            font-size: 38px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            pointer-events: none;
+            text-align: center;
+            white-space: nowrap;
+            text-shadow: 0px 4px 8px rgba(0, 0, 0, 0.4);
+            animation: float 3s ease-in-out infinite; 
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
+            50% { transform: translate(-50%, -50%) translateY(-6px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="missText"></div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height, elements = [];
+        const HEART_COLOR = '#89CFF0'; 
+        const HEART_BACK_COLOR = '#5dade2'; 
+
+        const emojis = ['☁️', '✨', '🧸', '🥺'];
+        const fullText = "🤍 I miss you 🤍";
+
+        function init() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            elements = [];
+            
+            for (let i = 0; i < 25; i++) {
+                elements.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    size: Math.random() * 10 + 14, 
+                    speedX: Math.random() * 0.8 - 0.4,
+                    speedY: Math.random() * 0.5 + 0.5,
+                    angle: Math.random() * Math.PI * 2,
+                    vAngle: Math.random() * 0.01,
+                    char: emojis[Math.floor(Math.random() * emojis.length)]
+                });
+            }
+        }
+
+        function drawHeart(ctx, x, y, size, rotationY) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(Math.cos(rotationY), 1); 
+            
+            ctx.beginPath();
+            ctx.moveTo(0, 2);
+            ctx.bezierCurveTo(-size / 1.5, -size / 1.5 + 2, -size * 1.2, size / 3 + 2, 0, size + 2);
+            ctx.bezierCurveTo(size * 1.2, size / 3 + 2, size / 1.5, -size / 1.5 + 2, 0, 2);
+            ctx.fillStyle = HEART_BACK_COLOR;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.bezierCurveTo(-size / 1.5, -size / 1.5, -size * 1.2, size / 3, 0, size);
+            ctx.bezierCurveTo(size * 1.2, size / 3, size / 1.5, -size / 1.5, 0, 0);
+            ctx.fillStyle = HEART_COLOR;
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        let startTime = Date.now();
+        let textIndex = 0;
+        let startTyping = false;
+        let lastTypeTime = 0;
+
+        function render() {
+            ctx.fillStyle = 'rgba(10, 17, 28, 0.2)'; 
+            ctx.fillRect(0, 0, width, height);
+
+            const now = Date.now();
+            const time = (now - startTime) * 0.002;
+            
+            // 1. 绘制背景 Emoji
+            elements.forEach(p => {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.angle);
+                ctx.font = `${p.size}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.globalAlpha = 0.4; 
+                ctx.fillText(p.char, 0, 0);
+                ctx.restore();
+
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.angle += p.vAngle;
+                if (p.y > height) {
+                    p.y = -20;
+                    p.x = Math.random() * width;
+                }
+            });
+
+            // 2. 【重磅重构】绝对清晰、有停顿感的“扑通”心跳算法
+            const bpm = 65; // 设置模拟心率，每分钟跳65次
+            const beatDuration = 60000 / bpm; // 每次心跳周期的总毫秒数（约923毫秒）
+            const elapsed = (now - startTime) % beatDuration; 
+            
+            let pulseScale = 0;
+            // 将单次心跳严格划分为：激进放大 -> 快速回弹 -> 彻底静止
+            if (elapsed < 120) {
+                // 前120毫秒：主心跳，猛烈放大
+                pulseScale = Math.sin((elapsed / 120) * (Math.PI / 2)) * 25;
+            } else if (elapsed < 240) {
+                // 120-240毫秒：迅速回弹收缩
+                pulseScale = 25 - Math.sin(((elapsed - 120) / 120) * (Math.PI / 2)) * 15;
+            } else if (elapsed < 360) {
+                // 240-360毫秒：轻微的第二下舒张（扑通的“通”声）
+                pulseScale = 10 + Math.sin(((elapsed - 240) / 120) * Math.PI) * 5;
+            } else {
+                // 360毫秒直到周期结束（约剩下560毫秒）：爱心保持静止不动！从而形成清晰的节拍
+                pulseScale = 10;
+            }
+
+            const pulse = 145 + pulseScale;
+            const rotationY = time * 0.9; // 稍微放慢 3D 旋转，让静止期更明显
+            drawHeart(ctx, width / 2, height / 2 - 60, pulse, rotationY);
+
+            // 3. 打字机逻辑
+            if (!startTyping && (now - startTime) > 1000) {
+                startTyping = true;
+                lastTypeTime = now;
+            }
+
+            if (startTyping && textIndex < fullText.length) {
+                if (now - lastTypeTime > 160) {
+                    if (fullText.substr(textIndex, 2) === "🤍") {
+                        document.getElementById('missText').innerText = fullText.substr(0, textIndex + 2);
+                        textIndex += 2;
+                    } else {
+                        document.getElementById('missText').innerText = fullText.substr(0, textIndex + 1);
+                        textIndex += 1;
+                    }
+                    lastTypeTime = now;
+                }
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        window.addEventListener('resize', init);
+        init();
+        render();
+    </script>
+</body>
+</html>
